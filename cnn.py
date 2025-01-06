@@ -7,6 +7,7 @@ from tqdm import tqdm
 from torchvision import transforms
 import numpy as np
 
+
 class ResNet18(nn.Module):
     def __init__(self, pretrained=False, probing=False):
         super(ResNet18, self).__init__()
@@ -89,7 +90,7 @@ transform = model.transform
 batch_size = 32
 num_of_epochs = 50
 learning_rate = 0.0001
-path = 'PATH_TO_whicfaceisreal' # For example '/cs/usr/username/whichfaceisreal/'
+path = 'C:\\Users\\Nir\\PycharmProjects\\IML_project_four\\whichfaceisreal' # For example '/cs/usr/username/whichfaceisreal/'
 train_loader, val_loader, test_loader = get_loaders(path, transform, batch_size)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
