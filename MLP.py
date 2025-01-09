@@ -58,7 +58,7 @@ class EuropeDataset(Dataset):
     
 
 class MLP(nn.Module):
-    def __init__(self, num_hidden_layers, hidden_dim, output_dim, extra_batch_norm=False, resnet=False, dropout=False):
+    def __init__(self, num_hidden_layers, hidden_dim, output_dim, extra_batch_norm=False, resnet=False, dropout=False, is_sine=False, input_dim=2):
         super(MLP, self).__init__()
         #### YOUR CODE HERE ####
         """
@@ -73,7 +73,7 @@ class MLP(nn.Module):
         self.dropout = dropout
         self.extra_batch_norm = extra_batch_norm
 
-        layers = [nn.Linear(2, hidden_dim)]
+        layers = [nn.Linear(input_dim, hidden_dim)]
 
         if extra_batch_norm:
             layers.append(nn.BatchNorm1d(hidden_dim))
@@ -110,18 +110,31 @@ class MLP(nn.Module):
 
 
 def train(train_dataset, val_dataset, test_dataset, model, lr=0.001, epochs=50, batch_size=256,
-          count_iterations=False, track_batch_loss=False, clipping=False, schedule=False, regularization=False):
+          count_iterations=False, track_batch_loss=False, gradient_magnitude=False, clipping=False, schedule=False, regularization=False, to_sine_data=False):
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     validation_loader = DataLoader(val_dataset, batch_size=1024, shuffle=False, num_workers=0)
     test_loader = DataLoader(test_dataset, batch_size=1024, shuffle=False, num_workers=0)
+    if to_sine_data:
+        preprocessor = SinusoidalPreprocessor()
+        train_transformed_features = preprocessor.transform(train_dataset.features)
+        train_dataset = torch.utils.data.TensorDataset(train_transformed_features, train_dataset.labels)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+        val_transformed_features = preprocessor.transform(val_dataset.features)
+        val_dataset = torch.utils.data.TensorDataset(val_transformed_features, val_dataset.labels)
+        validation_loader = DataLoader(val_dataset, batch_size=1024, shuffle=True)
+
+        test_transformed_features = preprocessor.transform(test_dataset.features)
+        test_dataset = torch.utils.data.TensorDataset(test_transformed_features, test_dataset.labels)
+        test_loader = DataLoader(test_dataset, batch_size=1024, shuffle=True)
+
 
     linear_pos = 1
     features = [model.extra_batch_norm, model.network, model.dropout]
     for feature in features:
         if feature:
             linear_pos += 1
-
     # Initialize criterion and optimizer
     criterion = nn.CrossEntropyLoss()
     if regularization:
@@ -161,7 +174,8 @@ def train(train_dataset, val_dataset, test_dataset, model, lr=0.001, epochs=50, 
             cnt = 0
         batch_count = 0
         # Sum gradients for each layer
-        grad_sum = {layer: 0.0 for layer in grad_magnitudes.keys()}
+        if gradient_magnitude:
+            grad_sum = {layer: 0.0 for layer in grad_magnitudes.keys()}
 
         for inputs, labels in train_loader:
             if count_iterations:
@@ -179,15 +193,16 @@ def train(train_dataset, val_dataset, test_dataset, model, lr=0.001, epochs=50, 
                                            max_norm=8)  # Clip gradients to avoid vanishing/exploding
 
             # Track gradient magnitudes for selected layers
-            for layer_idx in grad_magnitudes.keys():
+            if gradient_magnitude:
+                for layer_idx in grad_magnitudes.keys():
                 # Compute L2 norm squared of the weight gradient
-                weight = torch.pow(model.network[layer_idx * linear_pos].weight.grad.norm(2), 2).item()
+                    weight = torch.pow(model.network[layer_idx * linear_pos].weight.grad.norm(2), 2).item()
 
-                # Compute L2 norm squared of the bias gradient
-                bias = torch.pow(model.network[layer_idx * linear_pos].bias.grad.norm(2), 2).item()
+                    # Compute L2 norm squared of the bias gradient
+                    bias = torch.pow(model.network[layer_idx * linear_pos].bias.grad.norm(2), 2).item()
 
-                # Sum the L2 norms squared of weight and bias
-                grad_sum[layer_idx] += (weight + bias)
+                    # Sum the L2 norms squared of weight and bias
+                    grad_sum[layer_idx] += (weight + bias)
 
             optimizer.step()
             optimizer.zero_grad()
@@ -211,8 +226,9 @@ def train(train_dataset, val_dataset, test_dataset, model, lr=0.001, epochs=50, 
             print(f"Number of iteration for a batch of {batch_size} samples per epoch: {cnt}")
 
         # Compute mean gradient magnitude for each layer
-        for layer_idx in grad_magnitudes.keys():
-            grad_magnitudes[layer_idx].append(grad_sum[layer_idx] / batch_count)
+        if gradient_magnitude:
+            for layer_idx in grad_magnitudes.keys():
+                grad_magnitudes[layer_idx].append(grad_sum[layer_idx] / batch_count)
 
         count_iterations = False
         # Step the learning rate scheduler
@@ -454,7 +470,7 @@ def plot_gradient_magnitudes(output_dimension):
                                                     clipping=False, lr=0.001, batch_size=256, epochs=50, schedule=False)
 
     model = MLP(100, 40, output_dimension,extra_batch_norm=False, resnet=True, dropout=False)
-    model, train_accs, val_accs, test_accs, train_losses, val_losses, test_losses, train_losses_per_batch, grad_magnitudes = train(train_dataset, val_dataset,test_dataset, model,
+    _, train_accs, val_accs, test_accs, train_losses, val_losses, test_losses, _, grad_magnitudes = train(train_dataset, val_dataset,test_dataset, model,
                                                    clipping=True, lr= 0.0005, batch_size=512, epochs=50, schedule=True,
                                                    regularization=True)
     plot_model_loss_acc(val_losses, test_losses, train_losses, train_accs, val_accs, test_accs,is_accuracy=True)
@@ -468,6 +484,47 @@ def plot_gradient_magnitudes(output_dimension):
     plt.show()
 
 
+class SinusoidalPreprocessor:
+    def __init__(self, num_functions=10, alpha_start=0.1, alpha_end=1.0):
+        """
+        Initializes the sinusoidal preprocessor.
+        Args:
+            num_functions (int): Number of sine functions to apply.
+            alpha_start (float): Starting value of alpha.
+            alpha_end (float): Ending value of alpha.
+        """
+        self.alphas = torch.linspace(alpha_start, alpha_end, num_functions)
+
+    def transform(self, features):
+        """
+        Transforms the input features by applying sine functions.
+        Args:
+            features (torch.Tensor): Input features of shape (N, D).
+        Returns:
+            torch.Tensor: Transformed features of shape (N, D * num_functions).
+        """
+        transformed_features = []
+        for alpha in self.alphas:
+            transformed_features.append(torch.sin(alpha * features))
+        return torch.cat(transformed_features, dim=1)
+
+def compare_sine_model_to_default(output_dimension):
+    for i in range(2):
+        model_type = "Sined model" if i == 0 else "Standard model"
+        input_dim = 20 if i == 0 else 2
+        print(f"-------------------------{model_type}-------------------------------\n")
+
+        model = MLP(6, 16, output_dimension, input_dim = input_dim, is_sine=True if i == 0 else False)
+        _, train_accs, val_accs, test_accs, train_losses, val_losses, test_losses, _, _ =(
+            train(train_dataset, val_dataset,test_dataset, model, to_sine_data=True if i == 0 else False))
+        plot_model_loss_acc(val_losses, test_losses, train_losses, train_accs, val_accs, test_accs,
+                            is_accuracy=True if i == 0 else False)
+        test_data = pd.read_csv('test.csv')
+        plot_decision_boundaries(model, test_data[['long', 'lat']].values, test_data['country'].values,
+                             f" {model_type} Decision Boundaries",
+                             implicit_repr=True if i == 0 else False)
+
+
 if __name__ == '__main__':
     # seed for reproducibility
     torch.manual_seed(0)
@@ -479,21 +536,22 @@ if __name__ == '__main__':
     #### YOUR CODE HERE #####
     output_dim = len(train_dataset.labels.unique())
 
-    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses regular model")
-    # test_learning_rates_losses(output_dim)
-    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, epochs=100)
-    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses modified model", extra_batch_norm=True)
-    # test_validation_accuracies_per_batch_epoch(output_dim)
-    # test_train_losses_per_batch_epoch(output_dim)
-    # evaluate_MLP_performance(output_dim)
-    # test_depth_or_width_of_network(output_dim,
-    #                  models_parameters=MODELS_WITH_WIDTH_16,
-    #                  x_axis_parameters=HIDDEN_LAYERS_WIDTH_16,
-    #                  parameter=DEPTH,
-    #                  title='Accuracy vs Number of hidden layers', x_label_title='Hidden Layers')
-    # test_depth_or_width_of_network(output_dim,
-    #                 models_parameters=MODELS_WITH_DEPTH_6,
-    #                 x_axis_parameters=NUMER_NEURONS_DEPTH_6,
-    #                 parameter=WIDTH,
-    #                 title='Accuracy vs Number of neurons', x_label_title='Neurons')
+    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses regular model")
+    test_learning_rates_losses(output_dim)
+    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, epochs=100)
+    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses modified model", extra_batch_norm=True)
+    test_validation_accuracies_per_batch_epoch(output_dim)
+    test_train_losses_per_batch_epoch(output_dim)
+    evaluate_MLP_performance(output_dim)
+    test_depth_or_width_of_network(output_dim,
+                     models_parameters=MODELS_WITH_WIDTH_16,
+                     x_axis_parameters=HIDDEN_LAYERS_WIDTH_16,
+                     parameter=DEPTH,
+                     title='Accuracy vs Number of hidden layers', x_label_title='Hidden Layers')
+    test_depth_or_width_of_network(output_dim,
+                    models_parameters=MODELS_WITH_DEPTH_6,
+                    x_axis_parameters=NUMER_NEURONS_DEPTH_6,
+                    parameter=WIDTH,
+                    title='Accuracy vs Number of neurons', x_label_title='Neurons')
     plot_gradient_magnitudes(output_dim)
+    compare_sine_model_to_default(output_dim)
