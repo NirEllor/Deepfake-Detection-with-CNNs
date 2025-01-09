@@ -99,7 +99,6 @@ class MLP(nn.Module):
     def forward(self, x):
         if not self.resnet:
             return self.network(x)  # Regular forward pass
-
         # Forward pass with residual connections
         for layer in self.network:
             if isinstance(layer, nn.Linear) and x.size(-1) == layer.in_features:  # Residual condition
