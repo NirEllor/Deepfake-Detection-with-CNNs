@@ -464,20 +464,21 @@ def test_depth_or_width_of_network(output_dimension, models_parameters, x_axis_p
     plt.show()
 
 def plot_gradient_magnitudes(output_dimension):
-    model = MLP(100, 4, output_dimension, extra_batch_norm=False, resnet=False, dropout=False)
-    _, _, _, _, _, _, _, _, grad_magnitudes = train(train_dataset, val_dataset, test_dataset, model,
-                                                    clipping=False, lr=0.001, batch_size=256, epochs=50, schedule=False)
-
+    # model = MLP(100, 4, output_dimension, extra_batch_norm=False, resnet=False, dropout=False)
+    # _, _, _, _, _, _, _, _, grad_magnitudes = train(train_dataset, val_dataset, test_dataset, model,
+    #                                                 clipping=False, lr=0.001, batch_size=256, epochs=10, schedule=False)
+    #
     model = MLP(100, 40, output_dimension,extra_batch_norm=False, resnet=True, dropout=False)
     _, train_accs, val_accs, test_accs, train_losses, val_losses, test_losses, _, grad_magnitudes = train(train_dataset, val_dataset,test_dataset, model,
                                                    clipping=True, lr= 0.0005, batch_size=512, epochs=50, schedule=True,
-                                                   regularization=True)
+                                                   regularization=True, gradient_magnitude = True)
     plot_model_loss_acc(val_losses, test_losses, train_losses, train_accs, val_accs, test_accs,is_accuracy=True)
     plt.figure()
     for layer_idx, magnitudes in grad_magnitudes.items():
         plt.plot(magnitudes, label=f'Layer {layer_idx}')
     plt.xlabel('Epoch')
     plt.ylabel('Mean Gradient Magnitude')
+    # plt.yscale('log')
     plt.title('Mean Gradient Magnitudes for Selected Layers')
     plt.legend()
     plt.show()
@@ -535,22 +536,22 @@ if __name__ == '__main__':
     #### YOUR CODE HERE #####
     output_dim = len(train_dataset.labels.unique())
 
-    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses regular model")
-    test_learning_rates_losses(output_dim)
-    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, epochs=100)
-    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses modified model", extra_batch_norm=True)
-    test_validation_accuracies_per_batch_epoch(output_dim)
-    test_train_losses_per_batch_epoch(output_dim)
-    evaluate_MLP_performance(output_dim)
-    test_depth_or_width_of_network(output_dim,
-                     models_parameters=MODELS_WITH_WIDTH_16,
-                     x_axis_parameters=HIDDEN_LAYERS_WIDTH_16,
-                     parameter=DEPTH,
-                     title='Accuracy vs Number of hidden layers', x_label_title='Hidden Layers')
-    test_depth_or_width_of_network(output_dim,
-                    models_parameters=MODELS_WITH_DEPTH_6,
-                    x_axis_parameters=NUMER_NEURONS_DEPTH_6,
-                    parameter=WIDTH,
-                    title='Accuracy vs Number of neurons', x_label_title='Neurons')
+    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses regular model")
+    # test_learning_rates_losses(output_dim)
+    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, epochs=100)
+    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses modified model", extra_batch_norm=True)
+    # test_validation_accuracies_per_batch_epoch(output_dim)
+    # test_train_losses_per_batch_epoch(output_dim)
+    # evaluate_MLP_performance(output_dim)
+    # test_depth_or_width_of_network(output_dim,
+    #                  models_parameters=MODELS_WITH_WIDTH_16,
+    #                  x_axis_parameters=HIDDEN_LAYERS_WIDTH_16,
+    #                  parameter=DEPTH,
+    #                  title='Accuracy vs Number of hidden layers', x_label_title='Hidden Layers')
+    # test_depth_or_width_of_network(output_dim,
+    #                 models_parameters=MODELS_WITH_DEPTH_6,
+    #                 x_axis_parameters=NUMER_NEURONS_DEPTH_6,
+    #                 parameter=WIDTH,
+    #                 title='Accuracy vs Number of neurons', x_label_title='Neurons')
     plot_gradient_magnitudes(output_dim)
-    compare_sine_model_to_default(output_dim)
+    # compare_sine_model_to_default(output_dim)
