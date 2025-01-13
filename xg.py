@@ -1,12 +1,12 @@
 import os
-import torch.nn as nn
-from torchvision.models import resnet18, ResNet18_Weights
 import torch
 import torchvision
 from tqdm import tqdm
 from torchvision import transforms
 import numpy as np
 from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, roc_auc_score
+
 
 
 
@@ -33,7 +33,7 @@ np.random.seed(0)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 transform = transforms.Compose([transforms.Resize((224, 224)), transforms.CenterCrop(64), transforms.ToTensor()])
 batch_size = 32
-path = 'PATH_TO_whicfaceisreal' # For example '/cs/usr/username/whichfaceisreal/'
+path = 'whicfaceisreal' # For example '/cs/usr/username/whichfaceisreal/'
 train_loader, val_loader, test_loader = get_loaders(path, transform, batch_size)
 
 
@@ -56,6 +56,19 @@ with torch.no_grad():
     test_labels = torch.cat(test_labels, 0).cpu().numpy()
 ### DO NOT CHANGE THE CODE ABOVE THIS LINE ###
 
-
 ### YOUR XGBOOST CODE GOES HERE ###
+
+# XGBoost Baseline
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+xgb_model.fit(train_data, train_labels)
+
+
+# Predict on the test set
+y_pred = xgb_model.predict(test_data)
+y_pred_proba = xgb_model.predict_proba(test_data)[:, 1]
+
+# Evaluate XGBoost performance
+accuracy = accuracy_score(test_labels, y_pred)
+
+print(f"XGBoost Baseline - Accuracy: {accuracy:.4f}")
 
