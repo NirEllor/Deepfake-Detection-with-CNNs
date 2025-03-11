@@ -536,7 +536,7 @@ if __name__ == '__main__':
     #### YOUR CODE HERE #####
     output_dim = len(train_dataset.labels.unique())
 
-    # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses regular model")
+    test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses regular model")
     # test_learning_rates_losses(output_dim)
     # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, epochs=100)
     # test_model_arbitrary_lr(output_dim, train_dataset, val_dataset, test_dataset, losses_title="Losses modified model", extra_batch_norm=True)
@@ -553,5 +553,5 @@ if __name__ == '__main__':
     #                 x_axis_parameters=NUMER_NEURONS_DEPTH_6,
     #                 parameter=WIDTH,
     #                 title='Accuracy vs Number of neurons', x_label_title='Neurons')
-    plot_gradient_magnitudes(output_dim)
+    # plot_gradient_magnitudes(output_dim)
     # compare_sine_model_to_default(output_dim)
