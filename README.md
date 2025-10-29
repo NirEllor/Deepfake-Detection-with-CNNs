@@ -28,11 +28,12 @@ Input (image/frame)
 ```
 
 ## 📊 Tech Stack
-Category	Tools
-Language	Python 3.x
-Framework	PyTorch
-Model Type	CNN (Image/Frame Classification)
-Task Domain	Deepfake Detection · Media Forensics
+| Category     | Tools                                |
+|--------------|--------------------------------------|
+| Language     | Python 3.x                           |
+| Framework    | PyTorch                              |
+| Model Type   | CNN (Image/Frame Classification)     |
+| Task Domain  | Deepfake Detection · Media Forensics |
 
 ## 🔧 Installation & Setup
 Clone the repository:
